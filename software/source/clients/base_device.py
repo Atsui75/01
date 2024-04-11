@@ -254,12 +254,12 @@ class Device:
             RECORDING = False
 
     def on_press(self, key):
-        """Detect spacebar press and Ctrl+C combination."""
+        """Detect spacebar press and C+Ctrl combination."""
         self.pressed_keys.add(key)  # Add the pressed key to the set
 
         if keyboard.Key.space in self.pressed_keys:
             self.toggle_recording(True)
-        elif {keyboard.Key.ctrl, keyboard.KeyCode.from_char("c")} <= self.pressed_keys:
+        elif {keyboard.Key.ctrl_l, keyboard.KeyCode.from_char("c")} <= self.pressed_keys:
             logger.info("Ctrl+C pressed. Exiting...")
             kill_process_tree()
             os._exit(0)

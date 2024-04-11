@@ -7,7 +7,7 @@ def kill_process_tree():
     pid = os.getpid()  # Get the current process ID
     try:
         # Send SIGTERM to the entire process group to ensure all processes are targeted
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        psutil.Process(pid).terminate()
         parent = psutil.Process(pid)
         children = parent.children(recursive=True)
         for child in children:
