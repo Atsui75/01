@@ -32,6 +32,10 @@ from ..server.utils.process_utils import kill_process_tree
 from ..server.utils.logs import setup_logging
 from ..server.utils.logs import logger
 
+from ..server import server
+
+from ..server.services.stt.localWhisper.stt import stt_wav
+
 setup_logging()
 
 os.environ["STT_RUNNER"] = "server"
@@ -72,6 +76,7 @@ class Device:
         self.captured_images = []
         self.audiosegments = []
         self.server_url = ""
+        self.ctrl_pressed = False
 
     def fetch_image_from_camera(self, camera_index=CAMERA_DEVICE_INDEX):
         """Captures an image from the specified camera device and saves it to a temporary file. Adds the image to the captured_images list."""
@@ -144,7 +149,21 @@ class Device:
                 pass
             except:
                 logger.info(traceback.format_exc())
+    
+    def visualize_queue(self, q):
+        temp_list = []
+        while not q.empty():
+            item = q.get()
+            print(item)  # or process/display the item in another way
+            temp_list.append(item)
+        
+        # Put items back into the queue
+        for item in temp_list:
+            q.put(item)
+    
+        return temp_list  # Optionally return the list if needed for further use
 
+    
     def record_audio(self):
         if os.getenv("STT_RUNNER") == "server":
             # STT will happen on the server. we're sending audio.
@@ -218,10 +237,14 @@ class Device:
                 # way of doing things. stt_wav is not a thing anymore. Needs work to work
 
                 # Run stt then send text
-                text = stt_wav(wav_path)
+                text = stt_wav(server.service_directory_dict['stt'], wav_path)
+                
+                print('This is my transcripted text:', text)
                 logger.debug(f"STT result: {text}")
                 send_queue.put({"role": "user", "type": "message", "content": text})
                 send_queue.put({"role": "user", "type": "message", "end": True})
+                
+                self.visualize_queue(send_queue)
             else:
                 # Stream audio
                 with open(wav_path, "rb") as audio_file:
@@ -254,15 +277,28 @@ class Device:
             RECORDING = False
 
     def on_press(self, key):
-        """Detect spacebar press and C+Ctrl combination."""
+        """Detect spacebar press and Ctrl+C combination."""
         self.pressed_keys.add(key)  # Add the pressed key to the set
 
         if keyboard.Key.space in self.pressed_keys:
             self.toggle_recording(True)
-        elif {keyboard.Key.ctrl_l, keyboard.KeyCode.from_char("c")} <= self.pressed_keys:
+        elif {keyboard.Key.ctrl_l, keyboard.KeyCode.from_char('c')} <= self.pressed_keys:
             logger.info("Ctrl+C pressed. Exiting...")
             kill_process_tree()
             os._exit(0)
+
+        # Windows alternative to the above
+        if key == keyboard.Key.ctrl_l:
+            self.ctrl_pressed = True
+
+        try:
+            if key.vk == 67 and self.ctrl_pressed:
+                logger.info("Ctrl+C pressed. Exiting...")
+                kill_process_tree()
+                os._exit(0)
+        # For non-character keys
+        except:
+            pass
 
     def on_release(self, key):
         """Detect spacebar release and 'c' key press for camera, and handle key release."""
@@ -270,9 +306,12 @@ class Device:
             key
         )  # Remove the released key from the key press tracking set
 
+        if key == keyboard.Key.ctrl_l:
+            self.ctrl_pressed = False
+
         if key == keyboard.Key.space:
             self.toggle_recording(False)
-        elif CAMERA_ENABLED and key == keyboard.KeyCode.from_char("c"):
+        elif CAMERA_ENABLED and key == keyboard.KeyCode.from_char('c'):
             self.fetch_image_from_camera()
 
     async def message_sender(self, websocket):
@@ -361,7 +400,7 @@ class Device:
                     logger.debug(traceback.format_exc())
                     if show_connection_log:
                         logger.info(f"Connecting to `{WS_URL}`...")
-                        show_connection_log = False
+                        show_connection_log = True
                         await asyncio.sleep(2)
 
     async def start_async(self):

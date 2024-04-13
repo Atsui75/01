@@ -50,7 +50,7 @@ def select_local_model():
         interpreter.llm.api_base = "http://localhost:1234/v1"
         interpreter.llm.max_tokens = 1000
         interpreter.llm.context_window = 8000
-        interpreter.llm.api_key = "x"
+        interpreter.llm.api_key = "lm-studio"#"x"
 
     elif selected_model == "Ollama":
         try:

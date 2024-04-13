@@ -432,7 +432,11 @@ async def main(
     application_directory = user_data_dir("01")
     services_directory = os.path.join(application_directory, "services")
 
+    global service_directory_dict
+
     service_dict = {"llm": llm_service, "tts": tts_service, "stt": stt_service}
+    service_directory_dict = {"llm": '', 'tts': '', 'stt': ''}
+    
 
     # Create a temp file with the session number
     session_file_path = os.path.join(user_data_dir("01"), "01-session.txt")
@@ -444,6 +448,7 @@ async def main(
         service_directory = os.path.join(
             services_directory, service, service_dict[service]
         )
+        service_directory_dict[service] = service_directory
 
         # This is the folder they can mess around in
         config = {"service_directory": service_directory}
